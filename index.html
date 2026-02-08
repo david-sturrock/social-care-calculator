@@ -373,6 +373,46 @@
             <strong>Your policy:</strong> No cap on care costs. Assets above £14,250 contribute £1/week per £250.
             Full self-funding above £23,250.
         </div>
+
+        <h3 style="margin-top: 30px;">Income Protection Parameters</h3>
+
+        <div class="control-group">
+            <label>Living costs charge (residential care)</label>
+            <div class="hint">Weekly amount for accommodation/food that doesn't count toward the cap</div>
+            <div class="slider-container">
+                <input type="range" id="policy-living-cost" min="0" max="400" step="10" value="200" oninput="updateFromSlider()">
+                <span class="slider-value" id="policy-living-cost-value">£200/week</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Personal expenses allowance</label>
+            <div class="hint">Weekly amount kept for personal expenses when in residential care</div>
+            <div class="slider-container">
+                <input type="range" id="policy-pea" min="0" max="100" step="1" value="26.67" oninput="updateFromSlider()">
+                <span class="slider-value" id="policy-pea-value">£26.67/week</span>
+            </div>
+        </div>
+
+        <div class="two-col">
+            <div class="control-group">
+                <label>Minimum income guarantee (single)</label>
+                <div class="hint">Weekly income floor for single person in domiciliary care</div>
+                <div class="slider-container">
+                    <input type="range" id="policy-mig-single" min="0" max="400" step="1" value="202.46" oninput="updateFromSlider()">
+                    <span class="slider-value" id="policy-mig-single-value">£202.46/week</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Minimum income guarantee (couple)</label>
+                <div class="hint">Weekly income floor for couple member in domiciliary care</div>
+                <div class="slider-container">
+                    <input type="range" id="policy-mig-couple" min="0" max="400" step="1" value="154.58" oninput="updateFromSlider()">
+                    <span class="slider-value" id="policy-mig-couple-value">£154.58/week</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="section">
@@ -383,20 +423,19 @@
             an IFS/Health Foundation report by David Sturrock and Charles Tallack (February 2022).
         </p>
         <p class="info-text">
-            <strong>Fixed assumptions:</strong> Living costs charge = £200/week for residential care.
-            Personal expenses allowance = £26.67/week.
-            Minimum income guarantee = £202.46/week (single) or £154.58/week (couple member).
+            <strong>Default values:</strong> Living costs = £200/week, PEA = £26.67/week,
+            MIG = £202.46/week (single) or £154.58/week (couple). These can be adjusted in the policy parameters above.
         </p>
     </div>
 
     <script>
         // =====================================================
-        // CONSTANTS
+        // DEFAULT VALUES
         // =====================================================
-        const LIVING_COST = 200;  // £/week for residential care
-        const PEA = 26.67;        // Personal expenses allowance £/week
-        const MIG_SINGLE = 202.46;   // Minimum income guarantee single £/week
-        const MIG_COUPLE = 154.58;   // Minimum income guarantee couple member £/week
+        const DEFAULT_LIVING_COST = 200;  // £/week for residential care
+        const DEFAULT_PEA = 26.67;        // Personal expenses allowance £/week
+        const DEFAULT_MIG_SINGLE = 202.46;   // Minimum income guarantee single £/week
+        const DEFAULT_MIG_COUPLE = 154.58;   // Minimum income guarantee couple member £/week
 
         // Policy presets
         const EXISTING_SYSTEM = {
@@ -423,7 +462,11 @@
             annualIncome: 12000,
             housingShare: 0,
             careJourney: getCareJourney('1'),
-            userPolicy: { ...EXISTING_SYSTEM }
+            userPolicy: { ...EXISTING_SYSTEM },
+            livingCost: DEFAULT_LIVING_COST,
+            pea: DEFAULT_PEA,
+            migSingle: DEFAULT_MIG_SINGLE,
+            migCouple: DEFAULT_MIG_COUPLE
         };
 
         let meteringEnabled = true;  // Whether means-tested support counts toward cap
@@ -512,15 +555,15 @@
             for (const spell of careJourney.spells) {
                 const isResidential = spell.residential;
                 const weeklyCost = spell.weeklyCost;
-                const livingCost = isResidential ? LIVING_COST : 0;
+                const livingCost = isResidential ? state.livingCost : 0;
                 const careCost = weeklyCost - livingCost;
 
                 // Income floor depends on care type
                 let incFloor;
                 if (isResidential) {
-                    incFloor = PEA;
+                    incFloor = state.pea;
                 } else {
-                    incFloor = hasPartner ? MIG_COUPLE : MIG_SINGLE;
+                    incFloor = hasPartner ? state.migCouple : state.migSingle;
                 }
 
                 // Process each week in the spell
@@ -956,6 +999,18 @@
             meteringGroup.style.opacity = cap > 0 ? '1' : '0.5';
             meteringGroup.style.pointerEvents = cap > 0 ? 'auto' : 'none';
 
+            // Income protection parameters
+            state.livingCost = parseFloat(document.getElementById('policy-living-cost').value);
+            state.pea = parseFloat(document.getElementById('policy-pea').value);
+            state.migSingle = parseFloat(document.getElementById('policy-mig-single').value);
+            state.migCouple = parseFloat(document.getElementById('policy-mig-couple').value);
+
+            // Update display values for income protection
+            document.getElementById('policy-living-cost-value').textContent = '£' + state.livingCost + '/week';
+            document.getElementById('policy-pea-value').textContent = '£' + state.pea.toFixed(2) + '/week';
+            document.getElementById('policy-mig-single-value').textContent = '£' + state.migSingle.toFixed(2) + '/week';
+            document.getElementById('policy-mig-couple-value').textContent = '£' + state.migCouple.toFixed(2) + '/week';
+
             updatePolicySummary();
             updateCharts();
         }
@@ -967,8 +1022,18 @@
             document.getElementById('policy-ucl').value = 23250;
             document.getElementById('policy-tariff').value = 250;
 
+            // Reset income protection parameters
+            document.getElementById('policy-living-cost').value = DEFAULT_LIVING_COST;
+            document.getElementById('policy-pea').value = DEFAULT_PEA;
+            document.getElementById('policy-mig-single').value = DEFAULT_MIG_SINGLE;
+            document.getElementById('policy-mig-couple').value = DEFAULT_MIG_COUPLE;
+
             // Update state
             state.userPolicy = { ...EXISTING_SYSTEM };
+            state.livingCost = DEFAULT_LIVING_COST;
+            state.pea = DEFAULT_PEA;
+            state.migSingle = DEFAULT_MIG_SINGLE;
+            state.migCouple = DEFAULT_MIG_COUPLE;
             meteringEnabled = true;
 
             // Update metering buttons
@@ -987,8 +1052,18 @@
             document.getElementById('policy-ucl').value = 100000;
             document.getElementById('policy-tariff').value = 250;
 
+            // Reset income protection parameters
+            document.getElementById('policy-living-cost').value = DEFAULT_LIVING_COST;
+            document.getElementById('policy-pea').value = DEFAULT_PEA;
+            document.getElementById('policy-mig-single').value = DEFAULT_MIG_SINGLE;
+            document.getElementById('policy-mig-couple').value = DEFAULT_MIG_COUPLE;
+
             // Update state
             state.userPolicy = { ...UPDATED_DILNOT };
+            state.livingCost = DEFAULT_LIVING_COST;
+            state.pea = DEFAULT_PEA;
+            state.migSingle = DEFAULT_MIG_SINGLE;
+            state.migCouple = DEFAULT_MIG_COUPLE;
             meteringEnabled = true;
 
             // Update metering buttons
