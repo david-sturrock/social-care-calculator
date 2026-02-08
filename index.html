@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Care Cost Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            color: #1a5f7a;
+            border-bottom: 3px solid #1a5f7a;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #1a5f7a;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .control-group .hint {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .slider-container input[type="range"] {
+            flex: 1;
+        }
+        .slider-value {
+            min-width: 80px;
+            text-align: right;
+            font-weight: 600;
+            color: #1a5f7a;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #1a5f7a;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .toggle-container {
+            display: flex;
+            gap: 10px;
+        }
+        .toggle-btn {
+            padding: 10px 25px;
+            border: 2px solid #1a5f7a;
+            background: white;
+            color: #1a5f7a;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            background: #1a5f7a;
+            color: white;
+        }
+        .toggle-btn:hover {
+            background: #e8f4f8;
+        }
+        .toggle-btn.active:hover {
+            background: #154c61;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 30px;
+        }
+        .legend-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 30px;
+            height: 4px;
+            border-radius: 2px;
+        }
+        .custom-journey {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .custom-journey.visible {
+            display: block;
+        }
+        .custom-journey .control-group {
+            margin-bottom: 15px;
+        }
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 600px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+        .policy-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .info-text {
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>Social Care Cost Calculator</h1>
+    <p class="info-text">
+        This tool shows how different social care funding policies affect the amount people pay towards their care costs.
+        It compares the existing system, the "Updated Dilnot" reforms (with an £86,000 cap), and a policy you can customise.
+    </p>
+
+    <!-- Personal Circumstances -->
+    <div class="section">
+        <h2>Personal Circumstances</h2>
+
+        <div class="control-group">
+            <label>Do you have a partner?</label>
+            <div class="toggle-container">
+                <button class="toggle-btn active" data-value="no" onclick="setPartner('no')">No</button>
+                <button class="toggle-btn" data-value="yes" onclick="setPartner('yes')">Yes</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Annual income</label>
+            <div class="hint">Your income from pensions, benefits, and other sources</div>
+            <div class="slider-container">
+                <input type="range" id="income" min="0" max="50000" step="1000" value="12000" oninput="updateFromSlider()">
+                <span class="slider-value" id="income-value">£12,000</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Housing asset share</label>
+            <div class="hint">What percentage of your total wealth is in your home?</div>
+            <div class="slider-container">
+                <input type="range" id="housing-share" min="0" max="100" step="5" value="0" oninput="updateFromSlider()">
+                <span class="slider-value" id="housing-share-value">0%</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Care journey</label>
+            <select id="care-journey" onchange="updateCareJourney()">
+                <option value="1">10 years in residential care (£700/week)</option>
+                <option value="2">10 years in domiciliary care (£400/week)</option>
+                <option value="3">5 years domiciliary then 5 years residential</option>
+                <option value="custom">Custom care journey</option>
+            </select>
+
+            <div id="custom-journey" class="custom-journey">
+                <div class="control-group">
+                    <label>Care type</label>
+                    <select id="custom-care-type" onchange="updateFromSlider()">
+                        <option value="residential">Residential care</option>
+                        <option value="domiciliary">Domiciliary care (at home)</option>
+                        <option value="mixed">Domiciliary then residential</option>
+                    </select>
+                </div>
+
+                <div id="single-spell-options">
+                    <div class="control-group">
+                        <label>Duration (years)</label>
+                        <div class="slider-container">
+                            <input type="range" id="custom-duration" min="1" max="15" step="0.5" value="10" oninput="updateFromSlider()">
+                            <span class="slider-value" id="custom-duration-value">10 years</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Weekly cost (£)</label>
+                        <div class="slider-container">
+                            <input type="range" id="custom-cost" min="100" max="1500" step="50" value="700" oninput="updateFromSlider()">
+                            <span class="slider-value" id="custom-cost-value">£700</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mixed-spell-options" style="display: none;">
+                    <div class="two-col">
+                        <div>
+                            <div class="control-group">
+                                <label>Domiciliary duration (years)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="custom-dom-duration" min="0.5" max="10" step="0.5" value="5" oninput="updateFromSlider()">
+                                    <span class="slider-value" id="custom-dom-duration-value">5 years</span>
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label>Domiciliary weekly cost (£)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="custom-dom-cost" min="100" max="800" step="50" value="250" oninput="updateFromSlider()">
+                                    <span class="slider-value" id="custom-dom-cost-value">£250</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="control-group">
+                                <label>Residential duration (years)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="custom-res-duration" min="0.5" max="10" step="0.5" value="5" oninput="updateFromSlider()">
+                                    <span class="slider-value" id="custom-res-duration-value">5 years</span>
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label>Residential weekly cost (£)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="custom-res-cost" min="300" max="1500" step="50" value="700" oninput="updateFromSlider()">
+                                    <span class="slider-value" id="custom-res-cost-value">£700</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="section">
+        <h2>Results</h2>
+
+        <div class="legend-container">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #888;"></div>
+                <span>Existing system</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2563eb;"></div>
+                <span>Updated Dilnot (£86k cap)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #16a34a;"></div>
+                <span>Your policy</span>
+            </div>
+        </div>
+
+        <h3>Asset depletion by initial wealth</h3>
+        <p class="info-text">Shows what percentage of initial assets would be spent on care costs over the care journey.</p>
+        <div class="chart-container">
+            <canvas id="depletion-chart"></canvas>
+        </div>
+
+        <h3>Years to reach the cap by initial wealth</h3>
+        <p class="info-text">Shows how long it takes to reach the care cost cap (if there is one). "10+" means the cap is not reached within the care journey.</p>
+        <div class="chart-container">
+            <canvas id="cap-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- Policy Parameters -->
+    <div class="section">
+        <h2>Set Policy Parameters</h2>
+        <p class="info-text">Adjust these parameters to see how different policy choices affect care costs. The green "Your policy" line will update.</p>
+
+        <div class="control-group" style="margin-bottom: 25px;">
+            <button class="toggle-btn" onclick="setCurrentPolicy()" style="padding: 12px 20px;">Set to Current Policy</button>
+            <button class="toggle-btn" onclick="setDilnotPolicy()" style="padding: 12px 20px; margin-left: 10px;">Set to Updated Dilnot</button>
+        </div>
+
+        <div class="control-group">
+            <label>Care cost cap</label>
+            <div class="hint">Maximum personal contribution to care costs (£0 = no cap)</div>
+            <div class="slider-container">
+                <input type="range" id="policy-cap" min="0" max="150000" step="1000" value="0" oninput="updateFromSlider()">
+                <span class="slider-value" id="policy-cap-value">No cap</span>
+            </div>
+        </div>
+
+        <div class="control-group" id="metering-group" style="opacity: 0.5;">
+            <label>Means-tested support counts toward cap?</label>
+            <div class="hint">If "Yes", you reach the cap faster. If "No", only your personal payments count.</div>
+            <div class="toggle-container">
+                <button class="toggle-btn active" data-value="yes" onclick="setMetering('yes')">Yes (Dilnot style)</button>
+                <button class="toggle-btn" data-value="no" onclick="setMetering('no')">No (Amendment style)</button>
+            </div>
+        </div>
+
+        <div class="two-col">
+            <div class="control-group">
+                <label>Lower capital limit</label>
+                <div class="hint">Below this, no asset contribution required</div>
+                <div class="slider-container">
+                    <input type="range" id="policy-lcl" min="0" max="50000" step="250" value="14250" oninput="updateFromSlider()">
+                    <span class="slider-value" id="policy-lcl-value">£14,250</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Upper capital limit</label>
+                <div class="hint">Above this, no means-tested support</div>
+                <div class="slider-container">
+                    <input type="range" id="policy-ucl" min="0" max="200000" step="250" value="23250" oninput="updateFromSlider()">
+                    <span class="slider-value" id="policy-ucl-value">£23,250</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Capital tariff rate</label>
+            <div class="hint">£1 per week charged for every £X of assets between the limits</div>
+            <div class="slider-container">
+                <input type="range" id="policy-tariff" min="100" max="500" step="10" value="250" oninput="updateFromSlider()">
+                <span class="slider-value" id="policy-tariff-value">£250</span>
+            </div>
+        </div>
+
+        <div class="policy-description" id="policy-summary">
+            <strong>Your policy:</strong> No cap on care costs. Assets above £14,250 contribute £1/week per £250.
+            Full self-funding above £23,250.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>About this tool</h2>
+        <p class="info-text">
+            This calculator is based on the methodology from
+            <a href="https://ifs.org.uk/publications/does-cap-fit-analysing-governments-proposed-amendment-english-social-care-charging" target="_blank">"Does the cap fit?"</a>,
+            an IFS/Health Foundation report by David Sturrock and Charles Tallack (February 2022).
+        </p>
+        <p class="info-text">
+            <strong>Fixed assumptions:</strong> Living costs charge = £200/week for residential care.
+            Personal expenses allowance = £26.67/week.
+            Minimum income guarantee = £202.46/week (single) or £154.58/week (couple member).
+        </p>
+    </div>
+
+    <script>
+        // =====================================================
+        // CONSTANTS
+        // =====================================================
+        const LIVING_COST = 200;  // £/week for residential care
+        const PEA = 26.67;        // Personal expenses allowance £/week
+        const MIG_SINGLE = 202.46;   // Minimum income guarantee single £/week
+        const MIG_COUPLE = 154.58;   // Minimum income guarantee couple member £/week
+
+        // Policy presets
+        const EXISTING_SYSTEM = {
+            cap: 0,
+            capType: 3,  // No cap
+            lcl: 14250,
+            ucl: 23250,
+            tariff: 250
+        };
+
+        const UPDATED_DILNOT = {
+            cap: 86000,
+            capType: 1,  // All costs count toward cap
+            lcl: 20000,
+            ucl: 100000,
+            tariff: 250
+        };
+
+        // =====================================================
+        // STATE
+        // =====================================================
+        let state = {
+            hasPartner: false,
+            annualIncome: 12000,
+            housingShare: 0,
+            careJourney: getCareJourney('1'),
+            userPolicy: { ...EXISTING_SYSTEM }
+        };
+
+        let meteringEnabled = true;  // Whether means-tested support counts toward cap
+
+        // =====================================================
+        // CARE JOURNEY DEFINITIONS
+        // =====================================================
+        function getCareJourney(type) {
+            switch(type) {
+                case '1':  // 10 years residential
+                    return {
+                        spells: [{ residential: true, duration: 520, weeklyCost: 700 }]
+                    };
+                case '2':  // 10 years domiciliary
+                    return {
+                        spells: [{ residential: false, duration: 520, weeklyCost: 400 }]
+                    };
+                case '3':  // 5yr dom + 5yr resi
+                    return {
+                        spells: [
+                            { residential: false, duration: 260, weeklyCost: 250 },
+                            { residential: true, duration: 260, weeklyCost: 700 }
+                        ]
+                    };
+                default:
+                    return {
+                        spells: [{ residential: true, duration: 520, weeklyCost: 700 }]
+                    };
+            }
+        }
+
+        function getCustomCareJourney() {
+            const careType = document.getElementById('custom-care-type').value;
+
+            if (careType === 'mixed') {
+                const domDuration = parseFloat(document.getElementById('custom-dom-duration').value) * 52;
+                const domCost = parseFloat(document.getElementById('custom-dom-cost').value);
+                const resDuration = parseFloat(document.getElementById('custom-res-duration').value) * 52;
+                const resCost = parseFloat(document.getElementById('custom-res-cost').value);
+
+                return {
+                    spells: [
+                        { residential: false, duration: domDuration, weeklyCost: domCost },
+                        { residential: true, duration: resDuration, weeklyCost: resCost }
+                    ]
+                };
+            } else {
+                const duration = parseFloat(document.getElementById('custom-duration').value) * 52;
+                const cost = parseFloat(document.getElementById('custom-cost').value);
+                const isResidential = careType === 'residential';
+
+                return {
+                    spells: [{ residential: isResidential, duration: duration, weeklyCost: cost }]
+                };
+            }
+        }
+
+        // =====================================================
+        // CALCULATOR (ported from Stata CareCostCalc.ado)
+        // =====================================================
+        function calculateCareCosts(initialAssets, policy, careJourney, annualIncome, housingShare, hasPartner) {
+            // Split assets into housing and non-housing
+            const totalAssets = initialAssets;
+            let houseAssets = totalAssets * (housingShare / 100);
+            let nonHouseAssets = totalAssets - houseAssets;
+
+            // Weekly income (from annual)
+            const weeklyIncome = annualIncome / 52;
+
+            // Track cumulative values
+            let cumulTotCost = 0;
+            let cumulCareCost = 0;
+            let cumulSpend = 0;
+            let cumulMeterCont = 0;
+            let cumulStateTotCont = 0;
+            let cumulStateCareCont = 0;
+            let weekHitCap = null;
+
+            let currentHouseAssets = houseAssets;
+            let currentNonHouseAssets = nonHouseAssets;
+
+            let resiWeekCount = 0;  // Weeks in residential care (for 12-week disregard)
+            let hasReceivedStateSupport = false;
+
+            // Process each spell
+            for (const spell of careJourney.spells) {
+                const isResidential = spell.residential;
+                const weeklyCost = spell.weeklyCost;
+                const livingCost = isResidential ? LIVING_COST : 0;
+                const careCost = weeklyCost - livingCost;
+
+                // Income floor depends on care type
+                let incFloor;
+                if (isResidential) {
+                    incFloor = PEA;
+                } else {
+                    incFloor = hasPartner ? MIG_COUPLE : MIG_SINGLE;
+                }
+
+                // Process each week in the spell
+                for (let w = 0; w < spell.duration; w++) {
+                    if (isResidential) {
+                        resiWeekCount++;
+                    }
+
+                    // Current total assets
+                    const currentTotAssets = currentHouseAssets + currentNonHouseAssets;
+
+                    // Determine eligible assets for means test
+                    // Housing is disregarded if: domiciliary care, OR first 12 weeks of residential for singles
+                    let eligAssets;
+                    if (!isResidential) {
+                        eligAssets = currentNonHouseAssets;
+                    } else if (resiWeekCount <= 12 && !hasPartner) {
+                        eligAssets = currentNonHouseAssets;
+                    } else {
+                        eligAssets = currentTotAssets;
+                    }
+
+                    // Check if over cap (from previous week's metered contributions)
+                    const overCap = (policy.cap > 0 && cumulMeterCont >= policy.cap);
+
+                    // Income contribution
+                    let incCont;
+                    if (overCap) {
+                        // Only contribute to living costs after cap hit
+                        incCont = Math.max(0, Math.min(weeklyIncome - incFloor, livingCost));
+                    } else {
+                        incCont = Math.max(0, Math.min(weeklyIncome - incFloor, weeklyCost));
+                    }
+
+                    const remainCost = weeklyCost - incCont;
+
+                    // Tariff type: 0 = below LCL, 1 = between, 2 = above UCL
+                    let tariffType = 0;
+                    if (eligAssets > policy.ucl) {
+                        tariffType = 2;
+                    } else if (eligAssets > policy.lcl) {
+                        tariffType = 1;
+                    }
+
+                    // Capital income (notional income from assets)
+                    let capitalInc;
+                    if (tariffType === 0) {
+                        capitalInc = 0;
+                    } else if (tariffType === 1) {
+                        capitalInc = (eligAssets - policy.lcl) / policy.tariff;
+                    } else {
+                        capitalInc = remainCost;  // Self-funder
+                    }
+
+                    // Capital charge (actual charge on assets this week)
+                    let capitalCharge;
+                    if (overCap) {
+                        capitalCharge = Math.min(capitalInc, livingCost - incCont);
+                    } else {
+                        capitalCharge = Math.min(capitalInc, weeklyCost - incCont);
+                    }
+                    capitalCharge = Math.max(0, capitalCharge);
+
+                    // State contribution
+                    const stateTotCont = Math.max(0, weeklyCost - incCont - capitalCharge);
+                    const stateCareCont = Math.max(0, weeklyCost - Math.max(incCont + capitalCharge, livingCost));
+
+                    if (stateTotCont > 0) {
+                        hasReceivedStateSupport = true;
+                    }
+
+                    // Update cumulative values
+                    cumulTotCost += weeklyCost;
+                    cumulCareCost += careCost;
+                    cumulStateTotCont += stateTotCont;
+                    cumulStateCareCont += stateCareCont;
+                    cumulSpend = cumulTotCost - cumulStateTotCont;
+
+                    // Update metered contributions based on cap type
+                    if (policy.capType === 1) {
+                        // Care Act: all care costs count
+                        cumulMeterCont = cumulCareCost;
+                    } else if (policy.capType === 2) {
+                        // Amendment: only personal contributions count
+                        cumulMeterCont = cumulCareCost - cumulStateCareCont;
+                    } else {
+                        // No cap system
+                        cumulMeterCont = 0;
+                    }
+
+                    // Check if cap hit this week
+                    if (policy.cap > 0 && weekHitCap === null && cumulMeterCont >= policy.cap) {
+                        weekHitCap = w + 1;
+                        for (const prevSpell of careJourney.spells) {
+                            if (prevSpell === spell) break;
+                            weekHitCap += prevSpell.duration;
+                        }
+                    }
+
+                    // Deduct capital charge from assets (non-housing first)
+                    const nonHouseCharge = Math.min(capitalCharge, currentNonHouseAssets);
+                    currentNonHouseAssets -= nonHouseCharge;
+                    const remainCapitalCost = capitalCharge - nonHouseCharge;
+                    currentHouseAssets -= remainCapitalCost;
+                }
+            }
+
+            const endTotAssets = currentHouseAssets + currentNonHouseAssets;
+            const assetDepletion = totalAssets > 0 ? (totalAssets - endTotAssets) / totalAssets * 100 : 0;
+
+            return {
+                initialAssets: totalAssets,
+                endAssets: endTotAssets,
+                assetDepletion: assetDepletion,
+                totalSpend: cumulSpend,
+                totalCost: cumulTotCost,
+                stateContribution: cumulStateTotCont,
+                weekHitCap: weekHitCap,
+                yearsToHitCap: weekHitCap ? weekHitCap / 52 : null
+            };
+        }
+
+        // =====================================================
+        // GENERATE CHART DATA
+        // =====================================================
+        function generateChartData() {
+            const assetLevels = [];
+            for (let a = 0; a <= 500000; a += 10000) {
+                assetLevels.push(a);
+            }
+
+            const existingData = [];
+            const dilnotData = [];
+            const userPolicyData = [];
+
+            const existingCapData = [];
+            const dilnotCapData = [];
+            const userCapData = [];
+
+            for (const assets of assetLevels) {
+                // Existing system
+                const existingResult = calculateCareCosts(
+                    assets, EXISTING_SYSTEM, state.careJourney,
+                    state.annualIncome, state.housingShare, state.hasPartner
+                );
+                existingData.push({ x: assets / 1000, y: existingResult.assetDepletion });
+                existingCapData.push({ x: assets / 1000, y: existingResult.yearsToHitCap ?? 10.5 });
+
+                // Updated Dilnot
+                const dilnotResult = calculateCareCosts(
+                    assets, UPDATED_DILNOT, state.careJourney,
+                    state.annualIncome, state.housingShare, state.hasPartner
+                );
+                dilnotData.push({ x: assets / 1000, y: dilnotResult.assetDepletion });
+                dilnotCapData.push({ x: assets / 1000, y: dilnotResult.yearsToHitCap ?? 10.5 });
+
+                // User policy
+                const userResult = calculateCareCosts(
+                    assets, state.userPolicy, state.careJourney,
+                    state.annualIncome, state.housingShare, state.hasPartner
+                );
+                userPolicyData.push({ x: assets / 1000, y: userResult.assetDepletion });
+                userCapData.push({ x: assets / 1000, y: userResult.yearsToHitCap ?? 10.5 });
+            }
+
+            return {
+                depletion: { existing: existingData, dilnot: dilnotData, user: userPolicyData },
+                cap: { existing: existingCapData, dilnot: dilnotCapData, user: userCapData }
+            };
+        }
+
+        // =====================================================
+        // CHARTS
+        // =====================================================
+        let depletionChart = null;
+        let capChart = null;
+
+        function initCharts() {
+            const depletionCtx = document.getElementById('depletion-chart').getContext('2d');
+            const capCtx = document.getElementById('cap-chart').getContext('2d');
+
+            const chartData = generateChartData();
+
+            depletionChart = new Chart(depletionCtx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Existing system',
+                            data: chartData.depletion.existing,
+                            borderColor: '#888',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Updated Dilnot',
+                            data: chartData.depletion.dilnot,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Your policy',
+                            data: chartData.depletion.user,
+                            borderColor: '#16a34a',
+                            backgroundColor: 'transparent',
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => `Initial assets: £${items[0].parsed.x * 1000}`,
+                                label: (item) => `${item.dataset.label}: ${item.parsed.y.toFixed(1)}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: { display: true, text: 'Initial assets (£,000)' },
+                            min: 0,
+                            max: 500
+                        },
+                        y: {
+                            title: { display: true, text: 'Asset depletion (% of initial assets)' },
+                            min: 0,
+                            max: 100
+                        }
+                    }
+                }
+            });
+
+            capChart = new Chart(capCtx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Existing system',
+                            data: chartData.cap.existing,
+                            borderColor: '#888',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Updated Dilnot',
+                            data: chartData.cap.dilnot,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Your policy',
+                            data: chartData.cap.user,
+                            borderColor: '#16a34a',
+                            backgroundColor: 'transparent',
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => `Initial assets: £${items[0].parsed.x * 1000}`,
+                                label: (item) => {
+                                    const val = item.parsed.y;
+                                    if (val > 10) return `${item.dataset.label}: No cap / not reached`;
+                                    return `${item.dataset.label}: ${val.toFixed(1)} years`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: { display: true, text: 'Initial assets (£,000)' },
+                            min: 0,
+                            max: 500
+                        },
+                        y: {
+                            title: { display: true, text: 'Years to reach cap' },
+                            min: 0,
+                            max: 11,
+                            ticks: {
+                                callback: (val) => val > 10 ? '10+' : val
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            const chartData = generateChartData();
+
+            depletionChart.data.datasets[0].data = chartData.depletion.existing;
+            depletionChart.data.datasets[1].data = chartData.depletion.dilnot;
+            depletionChart.data.datasets[2].data = chartData.depletion.user;
+            depletionChart.update('none');
+
+            capChart.data.datasets[0].data = chartData.cap.existing;
+            capChart.data.datasets[1].data = chartData.cap.dilnot;
+            capChart.data.datasets[2].data = chartData.cap.user;
+            capChart.update('none');
+        }
+
+        // =====================================================
+        // UI HANDLERS
+        // =====================================================
+        function setPartner(value) {
+            state.hasPartner = (value === 'yes');
+            document.querySelectorAll('.control-group:first-of-type .toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.value === value);
+            });
+            updateCharts();
+        }
+
+        function setMetering(value) {
+            meteringEnabled = (value === 'yes');
+            document.querySelectorAll('#metering-group .toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.value === value);
+            });
+            // Update cap type: 1 = all costs count, 2 = only personal
+            if (state.userPolicy.cap > 0) {
+                state.userPolicy.capType = meteringEnabled ? 1 : 2;
+            }
+            updatePolicySummary();
+            updateCharts();
+        }
+
+        function updateCareJourney() {
+            const select = document.getElementById('care-journey');
+            const customDiv = document.getElementById('custom-journey');
+
+            if (select.value === 'custom') {
+                customDiv.classList.add('visible');
+                updateCustomCareTypeUI();
+                state.careJourney = getCustomCareJourney();
+            } else {
+                customDiv.classList.remove('visible');
+                state.careJourney = getCareJourney(select.value);
+            }
+            updateCharts();
+        }
+
+        function updateCustomCareTypeUI() {
+            const careType = document.getElementById('custom-care-type').value;
+            const singleOptions = document.getElementById('single-spell-options');
+            const mixedOptions = document.getElementById('mixed-spell-options');
+
+            if (careType === 'mixed') {
+                singleOptions.style.display = 'none';
+                mixedOptions.style.display = 'block';
+            } else {
+                singleOptions.style.display = 'block';
+                mixedOptions.style.display = 'none';
+            }
+        }
+
+        function updateFromSlider() {
+            // Personal circumstances
+            state.annualIncome = parseFloat(document.getElementById('income').value);
+            state.housingShare = parseFloat(document.getElementById('housing-share').value);
+
+            // Update display values
+            document.getElementById('income-value').textContent = '£' + state.annualIncome.toLocaleString();
+            document.getElementById('housing-share-value').textContent = state.housingShare + '%';
+
+            // Custom care journey
+            document.getElementById('custom-duration-value').textContent = document.getElementById('custom-duration').value + ' years';
+            document.getElementById('custom-cost-value').textContent = '£' + document.getElementById('custom-cost').value;
+            document.getElementById('custom-dom-duration-value').textContent = document.getElementById('custom-dom-duration').value + ' years';
+            document.getElementById('custom-dom-cost-value').textContent = '£' + document.getElementById('custom-dom-cost').value;
+            document.getElementById('custom-res-duration-value').textContent = document.getElementById('custom-res-duration').value + ' years';
+            document.getElementById('custom-res-cost-value').textContent = '£' + document.getElementById('custom-res-cost').value;
+
+            if (document.getElementById('care-journey').value === 'custom') {
+                updateCustomCareTypeUI();
+                state.careJourney = getCustomCareJourney();
+            }
+
+            // Policy parameters
+            const cap = parseFloat(document.getElementById('policy-cap').value);
+            state.userPolicy.cap = cap;
+            state.userPolicy.lcl = parseFloat(document.getElementById('policy-lcl').value);
+            state.userPolicy.ucl = parseFloat(document.getElementById('policy-ucl').value);
+            state.userPolicy.tariff = parseFloat(document.getElementById('policy-tariff').value);
+
+            // Cap type depends on whether there's a cap and metering setting
+            if (cap === 0) {
+                state.userPolicy.capType = 3;  // No cap
+            } else {
+                state.userPolicy.capType = meteringEnabled ? 1 : 2;
+            }
+
+            // Update display values for policy
+            document.getElementById('policy-cap-value').textContent = cap === 0 ? 'No cap' : '£' + cap.toLocaleString();
+            document.getElementById('policy-lcl-value').textContent = '£' + state.userPolicy.lcl.toLocaleString();
+            document.getElementById('policy-ucl-value').textContent = '£' + state.userPolicy.ucl.toLocaleString();
+            document.getElementById('policy-tariff-value').textContent = '£' + state.userPolicy.tariff;
+
+            // Enable/disable metering option based on cap
+            const meteringGroup = document.getElementById('metering-group');
+            meteringGroup.style.opacity = cap > 0 ? '1' : '0.5';
+            meteringGroup.style.pointerEvents = cap > 0 ? 'auto' : 'none';
+
+            updatePolicySummary();
+            updateCharts();
+        }
+
+        function setCurrentPolicy() {
+            // Set sliders to existing system values
+            document.getElementById('policy-cap').value = 0;
+            document.getElementById('policy-lcl').value = 14250;
+            document.getElementById('policy-ucl').value = 23250;
+            document.getElementById('policy-tariff').value = 250;
+
+            // Update state
+            state.userPolicy = { ...EXISTING_SYSTEM };
+            meteringEnabled = true;
+
+            // Update metering buttons
+            document.querySelectorAll('#metering-group .toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.value === 'yes');
+            });
+
+            // Refresh display
+            updateFromSlider();
+        }
+
+        function setDilnotPolicy() {
+            // Set sliders to Updated Dilnot values
+            document.getElementById('policy-cap').value = 86000;
+            document.getElementById('policy-lcl').value = 20000;
+            document.getElementById('policy-ucl').value = 100000;
+            document.getElementById('policy-tariff').value = 250;
+
+            // Update state
+            state.userPolicy = { ...UPDATED_DILNOT };
+            meteringEnabled = true;
+
+            // Update metering buttons
+            document.querySelectorAll('#metering-group .toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.value === 'yes');
+            });
+
+            // Refresh display
+            updateFromSlider();
+        }
+
+        function updatePolicySummary() {
+            const p = state.userPolicy;
+            let summary = '<strong>Your policy:</strong> ';
+
+            if (p.cap === 0) {
+                summary += 'No cap on care costs. ';
+            } else {
+                summary += `£${p.cap.toLocaleString()} cap on care costs. `;
+                if (p.capType === 1) {
+                    summary += 'All care spending counts toward cap. ';
+                } else {
+                    summary += 'Only personal contributions count toward cap. ';
+                }
+            }
+
+            summary += `Assets above £${p.lcl.toLocaleString()} contribute £1/week per £${p.tariff}. `;
+            summary += `Full self-funding above £${p.ucl.toLocaleString()}.`;
+
+            document.getElementById('policy-summary').innerHTML = summary;
+        }
+
+        // =====================================================
+        // INIT
+        // =====================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            updateFromSlider();
+        });
+    </script>
+</body>
+</html>
